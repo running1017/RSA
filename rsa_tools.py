@@ -27,6 +27,7 @@ def lcm(x, y):
 
 # 拡張ユークリッドの互除法
 def ex_euclid(x, y):
+    print(x,y)
     c0, c1 = x, y
     a0, a1 = 1, 0
     b0, b1 = 0, 1
@@ -38,7 +39,6 @@ def ex_euclid(x, y):
         c0, c1 = c1, m
         a0, a1 = a1, (a0 - q * a1)
         b0, b1 = b1, (b0 - q * b1)
-
     return c0, a0, b0
 
 # Miller-Rabinによる素数判定

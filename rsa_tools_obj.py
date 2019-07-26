@@ -8,12 +8,11 @@ Created on Tue Jul  2 15:30:57 2019
 from hashlib import sha256
 import re
 import random
+import base64
 
 str_code = 'utf-8'
-endian = 'big'
 hash_func = sha256
-JPN_bytes = 3
-max_len = 10
+n_digits = 712
 
 class Basic_RSA():
     # 最大公約数を計算
@@ -68,6 +67,27 @@ class Basic_RSA():
 
         return True
 
+    # 掛けると2進数でn_digits桁になる素数をランダムに2つ生成
+    @classmethod
+    def twin_prime(cls):
+        p_digits = random.randint(n_digits//10, n_digits-n_digits//10)
+        p = cls.search_prime(2**p_digits, 2**(p_digits+1)-1)
+        
+        q_min = pow(2, n_digits)//p
+        q_max = (pow(2, n_digits+1)-1)//p
+        q = cls.search_prime(q_min, q_max)
+
+        return p, q
+
+    @classmethod
+    def search_prime(cls, p_min, p_max):
+        p = 4
+
+        while(not cls.is_prime(p, 100)):
+            p = random.randint(p_min, p_max)
+        
+        return p
+
     # 鍵生成
     @classmethod
     def gen_key(cls, e, p, q):
@@ -83,21 +103,28 @@ class Basic_RSA():
         e, n = key
         return pow(num, e, n)
 
+class EX_RSA():
+    endian = 'big'
+
+    @classmethod
+    def int2byte(cls, num):
+        return num.to_bytes(n_digits//8, cls.endian)
+
+    # Base85でintをエンコード
+    @classmethod
+    def int_encode(cls, num):
+        byted = cls.int2byte(num)
+        return base64.b85encode(byted)
+
+    # Base85でデコードしてintに
+    @classmethod
+    def b85_decode(cls, b85):
+        byted = base64.b85decode(b85)
+        return int.from_bytes(byted, cls.endian)
+
 class Str_Crypt():
     def __init__(self, my_key):
         self.crypt = lambda num: Basic_RSA.crypt(num, my_key)
-
-    # strをintに
-    @classmethod
-    def str2int(cls, text):
-        bytes_text = text.encode(str_code)
-        return int.from_bytes(bytes_text, endian)
-
-    # intをstrに
-    @classmethod
-    def int2str(cls, num):
-        bytes_text = num.to_bytes(max_len*JPN_bytes, endian)
-        return bytes_text.decode(str_code).replace('\x00', '')
 
     # strをtupleに
     @classmethod
@@ -106,20 +133,21 @@ class Str_Crypt():
         return tuple(map(int, str_list))
 
     # 文字列を分割して暗号化
-    def text_encrypt(self, plaintext):
-        text_len = len(plaintext)
-        sub_texts = [plaintext[i:i+max_len] for i in range(0, text_len, max_len)]
-        return [self.crypt(self.str2int(text)) for text in sub_texts]
+    def text_encrypt(self, plaintext, c_type='int'):
+        byted_text = plaintext.encode(str_code)
+        text_len = len(byted_text)
+        max_len = n_digits//8
+        sub_texts = [byted_text[i:i+max_len] for i in range(0, text_len, max_len)]
+        return [self.crypt(int.from_bytes(text, 'little')) for text in sub_texts]
 
     # 分割された暗号を文字列に復号
-    def text_decrypt(self, c_list):
-        sub_texts = [self.int2str(self.crypt(cipher)) for cipher in c_list]
-        return ''.join(sub_texts)
+    def text_decrypt(self, c_list, c_type='int'):
+        sub_byted_texts = [self.crypt(cipher).to_bytes(n_digits//8+1, 'little') for cipher in c_list]
+        byted_texts = b''.join(sub_byted_texts)
+        return byted_texts.decode(str_code).replace('\x00', '')
 
-    partially_sub_enc = lambda m: '[' + ','.join(map(str, text_encrypt(m.group().strip('[]「」')))) + ']'
-
-    # []と「」で囲まれた部分だけ暗号化
-    def partially_encrypt(self, text, enc=partially_sub_enc):
+    # 復号化したときのプレビュー
+    def dec_preview(self, text, enc=lambda m: m.group().strip('[]「」')):
         pattern = r'[\[|「][^\[\]「」]*[\]|」]'
         i = 0
         partially_encrypted = ''
@@ -131,9 +159,10 @@ class Str_Crypt():
         partially_encrypted += text[i: len(text)]
         return partially_encrypted
 
-    # 復号化したときのプレビュー
-    def dec_preview(self, text):
-        return self.partially_encrypt(text, enc=lambda m: m.group().strip('[]「」'))
+    # []と「」で囲まれた部分だけ暗号化
+    def partially_encrypt(self, text):
+        partially_sub_enc = lambda m: '[' + ','.join(map(str, self.text_encrypt(m.group().strip('[]「」')))) + ']'
+        return self.dec_preview(text, enc=partially_sub_enc)
 
     # []で囲まれた部分だけ復号化
     def partially_decrypt(self, text):
@@ -166,10 +195,11 @@ class Signature_RSA():
 
     # hash値の取得
     def get_hash(self, text):
+        endian = 'big'
         hash_key = hash_func(text.encode(str_code))
         return int.from_bytes(hash_key.digest(), endian)
 
-    # 検証結果をACCEPTかREJECTに
+    # 検証結果を'ACCEPT'か'REJECT'という文字列に
     def verify(self, check):
         if check:
             return 'ACCEPT'
