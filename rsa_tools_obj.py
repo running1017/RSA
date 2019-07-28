@@ -72,7 +72,7 @@ class Basic_RSA():
     def twin_prime(cls):
         p_digits = random.randint(n_digits//10, n_digits-n_digits//10)
         p = cls.search_prime(2**p_digits, 2**(p_digits+1)-1)
-        
+
         q_min = pow(2, n_digits)//p
         q_max = (pow(2, n_digits+1)-1)//p
         q = cls.search_prime(q_min, q_max)
@@ -85,7 +85,7 @@ class Basic_RSA():
 
         while(not cls.is_prime(p, 100)):
             p = random.randint(p_min, p_max)
-        
+
         return p
 
     # 鍵生成
@@ -110,9 +110,21 @@ class EX_RSA():
     def int2byte(cls, num):
         return num.to_bytes(n_digits//8, cls.endian)
 
+    # Base64でintをエンコード
+    @classmethod
+    def int_b64encode(cls, num):
+        byted = cls.int2byte(num)
+        return base64.b64encode(byted)
+
+    # Base64でデコードしてintに
+    @classmethod
+    def b64_decode(cls, b64):
+        byted = base64.b64decode(b64)
+        return int.from_bytes(byted, cls.endian)
+
     # Base85でintをエンコード
     @classmethod
-    def int_encode(cls, num):
+    def int_b85encode(cls, num):
         byted = cls.int2byte(num)
         return base64.b85encode(byted)
 
@@ -133,16 +145,18 @@ class Str_Crypt():
         return tuple(map(int, str_list))
 
     # 文字列を分割して暗号化
-    def text_encrypt(self, plaintext, c_type='int'):
+    def text_encrypt(self, plaintext, c_type=lambda x: x):
         byted_text = plaintext.encode(str_code)
         text_len = len(byted_text)
         max_len = n_digits//8
         sub_texts = [byted_text[i:i+max_len] for i in range(0, text_len, max_len)]
-        return [self.crypt(int.from_bytes(text, 'little')) for text in sub_texts]
+        sub_cipher = lambda t: c_type(self.crypt(int.from_bytes(t, 'little')))
+        return [sub_cipher(text) for text in sub_texts]
 
     # 分割された暗号を文字列に復号
-    def text_decrypt(self, c_list, c_type='int'):
-        sub_byted_texts = [self.crypt(cipher).to_bytes(n_digits//8+1, 'little') for cipher in c_list]
+    def text_decrypt(self, c_list, c_type=lambda x: x):
+        sub_text = lambda c: c_type(self.crypt(c).to_bytes(n_digits//8+1, 'little'))
+        sub_byted_texts = [sub_text(cipher) for cipher in c_list]
         byted_texts = b''.join(sub_byted_texts)
         return byted_texts.decode(str_code).replace('\x00', '')
 
@@ -160,18 +174,19 @@ class Str_Crypt():
         return partially_encrypted
 
     # []と「」で囲まれた部分だけ暗号化
-    def partially_encrypt(self, text):
-        partially_sub_enc = lambda m: '[' + ','.join(map(str, self.text_encrypt(m.group().strip('[]「」')))) + ']'
+    def partially_encrypt(self, text, *c_type):
+        partially_sub_enc = lambda m:\
+            '[' + ','.join(map(str, self.text_encrypt(m.group().strip('[]「」'), *c_type))) + ']'
         return self.dec_preview(text, enc=partially_sub_enc)
 
     # []で囲まれた部分だけ復号化
-    def partially_decrypt(self, text):
+    def partially_decrypt(self, text, *c_type):
         pattern = r'\[[^\[\]]*\]'
         i = 0
         partially_decrypted = ''
         for m in re.finditer(pattern, text):
             partially_decrypted += text[i: m.start()]
-            dec_text = self.text_decrypt(self.str2tuple(m.group()))
+            dec_text = self.text_decrypt(self.str2tuple(m.group()), *c_type)
             partially_decrypted += dec_text
             i = m.end()
         partially_decrypted += text[i: len(text)]
