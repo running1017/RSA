@@ -5,14 +5,15 @@ Created on Tue Jul  2 15:30:57 2019
 @author: R20979
 """
 
-from hashlib import sha256
-import re
-import random
 import base64
+import random
+import re
+from hashlib import sha256
 
 str_code = 'utf-8'
 hash_func = sha256
 n_digits = 712
+
 
 class Basic_RSA():
     # 最大公約数を計算
@@ -103,6 +104,7 @@ class Basic_RSA():
         e, n = key
         return pow(num, e, n)
 
+
 class EX_RSA():
     endian = 'big'
 
@@ -133,6 +135,7 @@ class EX_RSA():
     def b85_decode(cls, b85):
         byted = base64.b85decode(b85)
         return int.from_bytes(byted, cls.endian)
+
 
 class Str_Crypt():
     def __init__(self, my_key):
@@ -191,6 +194,12 @@ class Str_Crypt():
             i = m.end()
         partially_decrypted += text[i: len(text)]
         return partially_decrypted
+
+
+# 鍵オブジェクト
+class Key_Obj():
+    def __init__(self):
+        pass
 
 class Signature_RSA():
     def __init__(self, my_key):

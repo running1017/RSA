@@ -20,12 +20,12 @@ class Main_Window(ttk.Notebook):
         # メインタブの作成
         main_tab = ttk.Frame(self)
         self.add(main_tab, text="crypt", padding=3)
-        Main_Tab(master=main_tab)
+        key_set = Main_Tab(master=main_tab).key_set
 
         # キータブの作成
         key_tab = ttk.Frame(self)
         self.add(key_tab, text="key", padding=3)
-        Key_Tab(master=key_tab, top=main_tab)
+        Key_Tab(master=key_tab, key_set=key_set)
 
         # Main_Windowの描画
         self.pack(expand=1, fill='both')
@@ -171,7 +171,7 @@ class Main_Tab(ttk.Frame):
         tk.Text().clipboard_clear()
         tk.Text().clipboard_append(text)
 
-    # 入出力ボックスの中身を空に
+    # 入出力ボックスの中身を空にする
     def clear_clicked(self, event):
         self.input_box.delete('1.0', 'end')
         self.output_box.configure(state='normal')
@@ -187,17 +187,59 @@ class Main_Tab(ttk.Frame):
         self.output_box.configure(state='disabled')
 
 
-# キーの作成・登録・切り替えをするタブの処理
+# キーの作成・登録をするタブの処理
 class Key_Tab(ttk.Frame):
-    def __init__(self, master=None, top=None):
+    def __init__(self, master=None, key_set=None):
         super().__init__(master)
-        self.top = top
+        self.key_set = key_set
         self.create_widgets()
 
+    # ウィジェットの作成
     def create_widgets(self):
-        a=tk.Text(self)
-        a.pack()
+        current_frame = ttk.Frame(self.master)
+        new_frame = ttk.Frame(self.master)
 
+        self.create_current_frame(current_frame)
+        self.create_new_frame(new_frame)
+
+        current_frame.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+        new_frame.grid(row=1, column=0, sticky='nsew', padx=10, pady=10)
+
+        self.master.grid_columnconfigure(0, weight=1)
+        self.master.grid_rowconfigure((0, 1), weight=1)
+
+    # 鍵選択関連フレームの作成
+    def create_current_frame(self, frame):
+        label_frame = ttk.Labelframe(frame, text="現在の通信先")
+        key_select = ttk.Combobox(label_frame, state='readonly')
+
+        label_frame.grid(row=0, column=0, sticky='nsew')
+        key_select.grid(row=0, column=0, sticky='ew')
+
+        label_frame.grid_columnconfigure(0, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_rowconfigure(0, weight=1)
+
+    # 鍵新規作成フレームの作成
+    def create_new_frame(self, frame):
+        label_frame = ttk.Labelframe(frame, text="新規作成")
+        from_label = ttk.Label(label_frame, text="自分の名前")
+        from_box = ttk.Entry(label_frame)
+        to_label = ttk.Label(label_frame, text="相手の名前")
+        to_box = ttk.Entry(label_frame)
+        create_button = ttk.Button(label_frame, text="作成")
+
+        label_frame.grid(row=0, column=0, sticky='nsew')
+        from_label.grid(row=0, column=0, sticky='w', padx=10, pady=10)
+        from_box.grid(row=0, column=1, sticky='ew', padx=10)
+        to_label.grid(row=1, column=0, sticky='w', padx=10, pady=10)
+        to_box.grid(row=1, column=1, sticky='ew', padx=10)
+        create_button.grid(row=2, column=1, sticky='e', padx=10, pady=10)
+
+        label_frame.grid_columnconfigure(1, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_rowconfigure(0, weight=1)
+    
 
 if __name__ =='__main__':
     root = tk.Tk()

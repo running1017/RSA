@@ -82,7 +82,7 @@ def main_window(my_key):
         try:
             cipher = inputbox.get('1.0', 'end -1c')
             receive_text = rsa_tools.partially_decrypt(cipher, my_key)
-        except ValueError:
+        except:
             receive_text = "復号化できませんでした"
 
         outputbox.configure(state='normal')
