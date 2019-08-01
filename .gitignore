@@ -4,3 +4,4 @@ package-lock.json
 __pycache__/rsa_tools.cpython-37.pyc
 my.key
 __pycache__/rsa_tools_obj.cpython-37.pyc
+/.keya/

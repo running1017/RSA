@@ -9,6 +9,7 @@ import base64
 import random
 import re
 from hashlib import sha256
+import datetime
 
 str_code = 'utf-8'
 hash_func = sha256
@@ -92,10 +93,10 @@ class Basic_RSA():
     # 鍵生成
     @classmethod
     def gen_key(cls, e, p, q):
-        pub_key = (e, p*q)
+        pub_key = [e, p*q]
         l = cls.lcm(p-1, q-1)
         _, a, _ = cls.ex_euclid(e, l)
-        sec_key = (a%l, p*q)
+        sec_key = [a%l, p*q]
         return pub_key, sec_key
 
     # 暗号化・復号化
@@ -103,6 +104,28 @@ class Basic_RSA():
     def crypt(cls, num, key):
         e, n = key
         return pow(num, e, n)
+
+
+# メタデータが扱えるKeyクラスの定義
+class Key():
+    def __init__(self, info):
+        self.update(info)
+
+    def update(self, info):
+        self.key = info['key']
+        self.attribute = info['attribute']
+        self.from_name = info['from']
+        self.destination_name = info['destination']
+        self.creation_date = datetime.date.fromisoformat(info['creation_date'])
+
+    def dump(self):
+        return {
+            'key': self.key,
+            'attribute': self.attribute,
+            'from': self.from_name,
+            'destination': self.destination_name,
+            'creation_date': self.creation_date.isoformat
+        }
 
 
 class EX_RSA():
@@ -195,11 +218,6 @@ class Str_Crypt():
         partially_decrypted += text[i: len(text)]
         return partially_decrypted
 
-
-# 鍵オブジェクト
-class Key_Obj():
-    def __init__(self):
-        pass
 
 class Signature_RSA():
     def __init__(self, my_key):

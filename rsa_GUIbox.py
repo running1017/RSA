@@ -6,6 +6,7 @@ Created on Thu Jul  4 08:20:26 2019
 """
 
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk
 
 import rsa_tools_obj
@@ -36,7 +37,7 @@ class Main_Tab(ttk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
         self.create_widgets()
-        self.key_set(None)
+        self.key_set(None) # あとで削除
 
         # 暗号文のコードはBase85
         self.encoder = rsa_tools_obj.EX_RSA().int_b85encode
@@ -65,7 +66,7 @@ class Main_Tab(ttk.Frame):
 
     # 入力ボックス関連フレームの作成
     def create_input_frame(self, frame):
-        self.input_box = tk.Text(frame, font=("MS Pゴシック", 12), height=8)
+        self.input_box = tk.Text(frame, font=("MS Pゴシック", 12), height=10)
         paste_button = ttk.Button(frame, text="貼り付け")
         scrollbar = tk.Scrollbar(frame, command=self.input_box.yview)
         self.input_menu = tk.Menu(frame, tearoff=0)
@@ -104,7 +105,12 @@ class Main_Tab(ttk.Frame):
 
     # 出力ボックス関連フレームの作成
     def create_output_frame(self, frame):
-        self.output_box = tk.Text(frame, state='disabled', font=("MS Pゴシック", 12), height=8)
+        self.output_box = tk.Text(
+            frame, 
+            state='disabled', 
+            font=("MS Pゴシック", 12), 
+            height=10
+        )
         copy_button = ttk.Button(frame, text="コピー")
         scrollbar = ttk.Scrollbar(frame, command=self.output_box.yview)
 
@@ -120,8 +126,16 @@ class Main_Tab(ttk.Frame):
 
     # 入力ボックスにメニューを表示
     def input_show_menu(self, event):
-        self.input_menu.entryconfigure("部分暗号化    Ctrl+e", command=self.partially_select)
-        self.input_menu.tk.call("tk_popup", self.input_menu, event.x_root, event.y_root)
+        self.input_menu.entryconfigure(
+            "部分暗号化    Ctrl+e",
+            command=self.partially_select
+        )
+        self.input_menu.tk.call(
+            "tk_popup", 
+            self.input_menu,
+            event.x_root, 
+            event.y_root
+        )
 
     # 選択されているところを[]で囲う
     def partially_select(self):
@@ -140,7 +154,10 @@ class Main_Tab(ttk.Frame):
 
     # 入力ボックスの内容を暗号化して出力ボックスに表示
     def enc_clicked(self, event):
-        send_cipher = self.cryptor.partially_encrypt(self.input_box.get('1.0', 'end -1c'), self.encoder)
+        send_cipher = self.cryptor.partially_encrypt(
+            self.input_box.get('1.0', 'end -1c'), 
+            self.encoder
+        )
         self.output_box.configure(state='normal')
         self.output_box.delete('1.0', 'end')
         self.output_box.insert('1.0', send_cipher)
@@ -196,8 +213,8 @@ class Key_Tab(ttk.Frame):
 
     # ウィジェットの作成
     def create_widgets(self):
-        current_frame = ttk.Frame(self.master)
-        new_frame = ttk.Frame(self.master)
+        current_frame = ttk.Labelframe(self.master, text="現在の通信先")
+        new_frame = ttk.Labelframe(self.master, text="新規作成")
 
         self.create_current_frame(current_frame)
         self.create_new_frame(new_frame)
@@ -210,40 +227,51 @@ class Key_Tab(ttk.Frame):
 
     # 鍵選択関連フレームの作成
     def create_current_frame(self, frame):
-        label_frame = ttk.Labelframe(frame, text="現在の通信先")
-        key_select = ttk.Combobox(label_frame, state='readonly')
+        key_var = tk.StringVar(frame)
+        key_select = ttk.Combobox(frame, textvariable=key_var, state='readonly')
+        to_label = ttk.Label(frame, text="通信先:")
+        to_name_label = ttk.Label(frame, text="いいいい")
+        creation_label = ttk.Label(frame, text="作成日:")
+        creation_date_label = ttk.Label(frame, text="2019年6月13日")
 
-        label_frame.grid(row=0, column=0, sticky='nsew')
-        key_select.grid(row=0, column=0, sticky='ew')
+        key_select.grid(row=0, column=0, columnspan=3, sticky='ew', padx=20, pady=10)
+        to_label.grid(row=1, column=0, sticky='w', padx=20)
+        to_name_label.grid(row=1, column=1, sticky='w', padx=20)
+        creation_label.grid(row=2, column=0, sticky='w', padx=20)
+        creation_date_label.grid(row=2, column=1, sticky='w', padx=20)
 
-        label_frame.grid_columnconfigure(0, weight=1)
-        frame.grid_columnconfigure(0, weight=1)
-        frame.grid_rowconfigure(0, weight=1)
+        frame.grid_columnconfigure(2, weight=1)
 
     # 鍵新規作成フレームの作成
     def create_new_frame(self, frame):
-        label_frame = ttk.Labelframe(frame, text="新規作成")
-        from_label = ttk.Label(label_frame, text="自分の名前")
-        from_box = ttk.Entry(label_frame)
-        to_label = ttk.Label(label_frame, text="相手の名前")
-        to_box = ttk.Entry(label_frame)
-        create_button = ttk.Button(label_frame, text="作成")
+        from_label = ttk.Label(frame, text="自分の名前")
+        from_box = ttk.Entry(frame)
+        to_label = ttk.Label(frame, text="相手の名前")
+        to_box = ttk.Entry(frame)
+        create_button = ttk.Button(frame, text="作成")
 
-        label_frame.grid(row=0, column=0, sticky='nsew')
         from_label.grid(row=0, column=0, sticky='w', padx=10, pady=10)
-        from_box.grid(row=0, column=1, sticky='ew', padx=10)
+        from_box.grid(row=0, column=1, sticky='ew', padx=20)
         to_label.grid(row=1, column=0, sticky='w', padx=10, pady=10)
-        to_box.grid(row=1, column=1, sticky='ew', padx=10)
-        create_button.grid(row=2, column=1, sticky='e', padx=10, pady=10)
+        to_box.grid(row=1, column=1, sticky='ew', padx=20)
+        create_button.grid(row=2, column=1, sticky='e', padx=20, pady=10)
 
-        label_frame.grid_columnconfigure(1, weight=1)
-        frame.grid_columnconfigure(0, weight=1)
-        frame.grid_rowconfigure(0, weight=1)
+        frame.grid_columnconfigure(1, weight=1)
+
+    # ./.key/以下の鍵一覧を取得
+    def key_list(self, key_dir=Path("./.key")):
+        key_dir.mkdir(exist_ok=True)
+        return list(key_dir.glob("*key"))
+
+    # コンボボックスを選択したときの動作
+    def key_selected(self, event):
+        
+        
     
 
 if __name__ =='__main__':
     root = tk.Tk()
     Main_Window(root)
     root.update()
-    root.minsize(300, 200)
+    root.minsize(350, 400)
     root.mainloop()
