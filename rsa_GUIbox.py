@@ -5,9 +5,11 @@ Created on Thu Jul  4 08:20:26 2019
 @author: R20979
 """
 
+import datetime
+import json
 import tkinter as tk
 from pathlib import Path
-from tkinter import ttk
+from tkinter import filedialog, ttk
 
 import rsa_tools_obj
 
@@ -106,9 +108,9 @@ class Main_Tab(ttk.Frame):
     # 出力ボックス関連フレームの作成
     def create_output_frame(self, frame):
         self.output_box = tk.Text(
-            frame, 
-            state='disabled', 
-            font=("MS Pゴシック", 12), 
+            frame,
+            state='disabled',
+            font=("MS Pゴシック", 12),
             height=10
         )
         copy_button = ttk.Button(frame, text="コピー")
@@ -131,9 +133,9 @@ class Main_Tab(ttk.Frame):
             command=self.partially_select
         )
         self.input_menu.tk.call(
-            "tk_popup", 
+            "tk_popup",
             self.input_menu,
-            event.x_root, 
+            event.x_root,
             event.y_root
         )
 
@@ -155,7 +157,7 @@ class Main_Tab(ttk.Frame):
     # 入力ボックスの内容を暗号化して出力ボックスに表示
     def enc_clicked(self, event):
         send_cipher = self.cryptor.partially_encrypt(
-            self.input_box.get('1.0', 'end -1c'), 
+            self.input_box.get('1.0', 'end -1c'),
             self.encoder
         )
         self.output_box.configure(state='normal')
@@ -209,6 +211,10 @@ class Key_Tab(ttk.Frame):
     def __init__(self, master=None, key_set=None):
         super().__init__(master)
         self.key_set = key_set
+        self.pubkeys_dir = Path('./public')
+        self.pubkeys_dir.mkdir(exist_ok=True)
+        self.my_keys_dir = Path('./.key')
+        self.my_keys_dir.mkdir(exist_ok=True)
         self.create_widgets()
 
     # ウィジェットの作成
@@ -227,14 +233,22 @@ class Key_Tab(ttk.Frame):
 
     # 鍵選択関連フレームの作成
     def create_current_frame(self, frame):
-        key_var = tk.StringVar(frame)
-        key_select = ttk.Combobox(frame, textvariable=key_var, state='readonly')
-        to_label = ttk.Label(frame, text="通信先:")
-        to_name_label = ttk.Label(frame, text="いいいい")
-        creation_label = ttk.Label(frame, text="作成日:")
-        creation_date_label = ttk.Label(frame, text="2019年6月13日")
+        # ウィジェットの作成
+        self.key_var        = tk.StringVar(frame)
+        self.key_select     = ttk.Combobox(frame, textvariable=self.key_var, state='readonly')
+        to_label            = ttk.Label(frame, text="通信先:")
+        self.to_var         = tk.StringVar(frame)
+        to_name_label       = ttk.Label(frame, textvariable=self.to_var)
+        creation_label      = ttk.Label(frame, text="作成日:")
+        self.date_var       = tk.StringVar(frame)
+        creation_date_label = ttk.Label(frame, textvariable=self.date_var)
 
-        key_select.grid(row=0, column=0, columnspan=3, sticky='ew', padx=20, pady=10)
+        # 関数のバインド
+        self.key_select.bind("<Button-1>", self.key_select_clicked)
+        self.key_select.bind("<<ComboboxSelected>>", self.key_selected)
+
+        # ウィジェットの配置
+        self.key_select.grid(row=0, column=0, columnspan=3, sticky='ew', padx=20, pady=10)
         to_label.grid(row=1, column=0, sticky='w', padx=20)
         to_name_label.grid(row=1, column=1, sticky='w', padx=20)
         creation_label.grid(row=2, column=0, sticky='w', padx=20)
@@ -244,30 +258,101 @@ class Key_Tab(ttk.Frame):
 
     # 鍵新規作成フレームの作成
     def create_new_frame(self, frame):
-        from_label = ttk.Label(frame, text="自分の名前")
-        from_box = ttk.Entry(frame)
-        to_label = ttk.Label(frame, text="相手の名前")
-        to_box = ttk.Entry(frame)
-        create_button = ttk.Button(frame, text="作成")
+        # ウィジェットの作成
+        title_label             = ttk.Label(frame, text="鍵名")
+        self.title_box          = ttk.Entry(frame)
+        from_label              = ttk.Label(frame, text="自分の名前")
+        self.from_box           = ttk.Entry(frame)
+        destination_label       = ttk.Label(frame, text="相手の名前")
+        self.destination_box    = ttk.Entry(frame)
+        pubkeys_dir_label       = ttk.Label(frame, text="公開鍵の保存先")
+        pubkeys_dir_frame       = ttk.Frame(frame)
+        self.pubkeys_dir_var    = tk.StringVar(pubkeys_dir_frame, value=self.pubkeys_dir.resolve())
+        pubkeys_dir_box         = ttk.Entry(
+            pubkeys_dir_frame, textvariable=self.pubkeys_dir_var, state='readonly')
+        pubkey_extention_label  = ttk.Label(pubkeys_dir_frame, text=".key")
+        pubkeys_dir_button      = ttk.Button(pubkeys_dir_frame, text="参照")
+        pubkey_explain_label    = ttk.Label(frame, text="※作成した公開鍵を相手に渡してください")
+        create_button           = ttk.Button(frame, text="作成")
 
-        from_label.grid(row=0, column=0, sticky='w', padx=10, pady=10)
-        from_box.grid(row=0, column=1, sticky='ew', padx=20)
-        to_label.grid(row=1, column=0, sticky='w', padx=10, pady=10)
-        to_box.grid(row=1, column=1, sticky='ew', padx=20)
-        create_button.grid(row=2, column=1, sticky='e', padx=20, pady=10)
+        # 関数のバインド
+        self.title_box.bind("<KeyRelease>", self.pubkeys_dir_update)
+        pubkeys_dir_button.bind("<Button-1>", self.pubkeys_dir_select)
+        create_button.bind("<Button-1>", self.create_key)
 
+        # ウィジェットの配置
+        title_label.grid(row=0, column=0, sticky='w', padx=10, pady=10)
+        self.title_box.grid(row=0, column=1, sticky='ew', padx=20)
+        from_label.grid(row=1, column=0, sticky='w', padx=10, pady=10)
+        self.from_box.grid(row=1, column=1, sticky='ew', padx=20)
+        destination_label.grid(row=2, column=0, sticky='w', padx=10, pady=10)
+        self.destination_box.grid(row=2, column=1, sticky='ew', padx=20)
+        pubkeys_dir_label.grid(row=3, column=0, sticky='w', padx=10, pady=(10, 0))
+        pubkeys_dir_frame.grid(row=3, column=1, sticky='ew', padx=20, pady=(10, 0))
+        pubkey_explain_label.grid(row=4, column=1, sticky='w', padx=20)
+        create_button.grid(row=5, column=1, sticky='e', padx=20, pady=10)
+
+        pubkeys_dir_box.grid(row=0, column=0, sticky='ew')
+        pubkey_extention_label.grid(row=0, column=1, sticky='e')
+        pubkeys_dir_button.grid(row=0, column=2, sticky='e')
+
+        pubkeys_dir_frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
 
     # ./.key/以下の鍵一覧を取得
-    def key_list(self, key_dir=Path("./.key")):
-        key_dir.mkdir(exist_ok=True)
-        return list(key_dir.glob("*key"))
+    def get_keys_list(self):
+        return list(self.my_keys_dir.glob("*key"))
 
-    # コンボボックスを選択したときの動作
+    # key_selectのvaluesに現在の鍵のファイル名で更新
+    def key_select_clicked(self, event):
+        self.keys_list = self.get_keys_list()
+        self.key_select['values'] = [key.stem() for key in self.keys_list]
+
+    # key_selectで値を選択したときの動作
     def key_selected(self, event):
-        
-        
-    
+        key_index = self.key_select.current()
+        key_dir = self.keys_list[key_index]
+        with key_dir.open('r') as file:
+            self.key_data = rsa_tools_obj.Key(json.load(file))
+
+        self.key_set(self.key_data.key)
+        self.to_var = self.key_data.from_name if self.key_data.is_public else self.key_data.destination_name
+        self.date_var = self.key_data.creation_date.isoformat()
+
+    # 公開鍵を保存するディレクトリを選択する
+    def pubkeys_dir_select(self, event):
+        pk_dir = filedialog.askdirectory(initialdir=self.pubkeys_dir)
+        self.pubkeys_dir = Path(pk_dir)
+        self.pubkeys_dir_update(None)
+
+    # titleが入力されたらpubkeys_dir_boxの値を変える
+    def pubkeys_dir_update(self, event):
+        title = (self.pubkeys_dir / self.title_box.get()).resolve()
+        self.pubkeys_dir_var.set(title)
+
+    # 新規鍵を作成して秘密鍵を./.keyに、公開鍵を./pubkeyに作成
+    def create_key(self, event):
+        pk, sk = rsa_tools_obj.Basic_RSA.gen_key()
+
+        def addition_info(key):
+            return {
+                'key': key,
+                'from': self.from_box.get(),
+                'destination': self.destination_box.get(),
+                'creation_date': datetime.date.today().isoformat()
+            }
+
+        pk_data = addition_info(pk)
+        pk_data['is_public'] = True
+        pk_path = self.pubkeys_dir / (self.title_box.get() + '.key')
+        with pk_path.open('w') as f:
+            json.dump(pk_data, f)
+
+        sk_data = addition_info(sk)
+        sk_data['is_public'] = False
+        sk_path = self.my_keys_dir / ('.' + self.title_box.get() + '.key')
+        with sk_path.open('w') as f:
+            json.dump(sk_data, f)
 
 if __name__ =='__main__':
     root = tk.Tk()

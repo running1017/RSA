@@ -92,8 +92,12 @@ class Basic_RSA():
 
     # 鍵生成
     @classmethod
-    def gen_key(cls, e, p, q):
+    def gen_key(cls):
+        e = 65537
+        p, q = cls.twin_prime()
+
         pub_key = [e, p*q]
+
         l = cls.lcm(p-1, q-1)
         _, a, _ = cls.ex_euclid(e, l)
         sec_key = [a%l, p*q]
@@ -113,7 +117,7 @@ class Key():
 
     def update(self, info):
         self.key = info['key']
-        self.attribute = info['attribute']
+        self.is_public = info['is_public']
         self.from_name = info['from']
         self.destination_name = info['destination']
         self.creation_date = datetime.date.fromisoformat(info['creation_date'])
@@ -121,10 +125,10 @@ class Key():
     def dump(self):
         return {
             'key': self.key,
-            'attribute': self.attribute,
+            'is_public': self.is_public,
             'from': self.from_name,
             'destination': self.destination_name,
-            'creation_date': self.creation_date.isoformat
+            'creation_date': self.creation_date.isoformat()
         }
 
 
