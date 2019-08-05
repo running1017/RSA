@@ -6,10 +6,10 @@ Created on Tue Jul  2 15:30:57 2019
 """
 
 import base64
+import datetime
 import random
 import re
 from hashlib import sha256
-import datetime
 
 str_code = 'utf-8'
 hash_func = sha256
@@ -117,6 +117,7 @@ class Key():
 
     def update(self, info):
         self.key = info['key']
+        self.n_digits = info['n_digits']
         self.is_public = info['is_public']
         self.from_name = info['from']
         self.destination_name = info['destination']
@@ -125,6 +126,7 @@ class Key():
     def dump(self):
         return {
             'key': self.key,
+            'n_digits': self.n_digits,
             'is_public': self.is_public,
             'from': self.from_name,
             'destination': self.destination_name,
@@ -143,24 +145,24 @@ class EX_RSA():
     @classmethod
     def int_b64encode(cls, num):
         byted = cls.int2byte(num)
-        return base64.b64encode(byted)
+        return base64.b64encode(byted).decode()
 
     # Base64でデコードしてintに
     @classmethod
     def b64_decode(cls, b64):
-        byted = base64.b64decode(b64)
+        byted = base64.b64decode(b64.encode())
         return int.from_bytes(byted, cls.endian)
 
     # Base85でintをエンコード
     @classmethod
     def int_b85encode(cls, num):
         byted = cls.int2byte(num)
-        return base64.b85encode(byted)
+        return base64.b85encode(byted).decode()
 
     # Base85でデコードしてintに
     @classmethod
     def b85_decode(cls, b85):
-        byted = base64.b85decode(b85)
+        byted = base64.b85decode(b85.encode())
         return int.from_bytes(byted, cls.endian)
 
 
@@ -171,8 +173,8 @@ class Str_Crypt():
     # strをtupleに
     @classmethod
     def str2tuple(cls, string):
-        str_list = re.split(r'[,|\n| ]+', string.strip('()[]'))
-        return tuple(map(int, str_list))
+        str_list = re.split('[,\n ]+', string.strip('()[]'))
+        return str_list
 
     # 文字列を分割して暗号化
     def text_encrypt(self, plaintext, c_type=lambda x: x):
@@ -184,8 +186,8 @@ class Str_Crypt():
         return [sub_cipher(text) for text in sub_texts]
 
     # 分割された暗号を文字列に復号
-    def text_decrypt(self, c_list, c_type=lambda x: x):
-        sub_text = lambda c: c_type(self.crypt(c).to_bytes(n_digits//8+1, 'little'))
+    def text_decrypt(self, c_list, c_type=lambda x: int(x)):
+        sub_text = lambda c: self.crypt(c_type(c)).to_bytes(n_digits//8+1, 'little')
         sub_byted_texts = [sub_text(cipher) for cipher in c_list]
         byted_texts = b''.join(sub_byted_texts)
         return byted_texts.decode(str_code).replace('\x00', '')

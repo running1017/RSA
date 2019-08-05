@@ -7,9 +7,11 @@ Created on Thu Jul  4 08:20:26 2019
 
 import datetime
 import json
+import shutil
+import subprocess
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, ttk
+from tkinter import filedialog, messagebox, ttk
 
 import rsa_tools_obj
 
@@ -215,21 +217,27 @@ class Key_Tab(ttk.Frame):
         self.pubkeys_dir.mkdir(exist_ok=True)
         self.my_keys_dir = Path('./.key')
         self.my_keys_dir.mkdir(exist_ok=True)
+        subprocess.run(
+            "attrib +h {}".format(self.my_keys_dir),
+            shell=True)
         self.create_widgets()
 
     # ウィジェットの作成
     def create_widgets(self):
-        current_frame = ttk.Labelframe(self.master, text="現在の通信先")
-        new_frame = ttk.Labelframe(self.master, text="新規作成")
+        current_frame  = ttk.Labelframe(self.master, text="現在の使用鍵")
+        register_frame = ttk.Labelframe(self.master, text="公開鍵登録")
+        new_frame      = ttk.Labelframe(self.master, text="新規作成")
 
         self.create_current_frame(current_frame)
+        self.create_register_frame(register_frame)
         self.create_new_frame(new_frame)
 
         current_frame.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
-        new_frame.grid(row=1, column=0, sticky='nsew', padx=10, pady=10)
+        register_frame.grid(row=0, column=1, sticky='nsew', padx=10, pady=10)
+        new_frame.grid(row=1, column=0, columnspan=2, sticky='nsew', padx=10, pady=10)
 
-        self.master.grid_columnconfigure(0, weight=1)
-        self.master.grid_rowconfigure((0, 1), weight=1)
+        self.master.grid_columnconfigure((0, 1), weight=1)
+        self.master.grid_rowconfigure(1, weight=1)
 
     # 鍵選択関連フレームの作成
     def create_current_frame(self, frame):
@@ -248,13 +256,36 @@ class Key_Tab(ttk.Frame):
         self.key_select.bind("<<ComboboxSelected>>", self.key_selected)
 
         # ウィジェットの配置
-        self.key_select.grid(row=0, column=0, columnspan=3, sticky='ew', padx=20, pady=10)
+        self.key_select.grid(row=0, column=0, columnspan=3, sticky='ew', padx=20, pady=20)
         to_label.grid(row=1, column=0, sticky='w', padx=20)
         to_name_label.grid(row=1, column=1, sticky='w', padx=20)
         creation_label.grid(row=2, column=0, sticky='w', padx=20)
-        creation_date_label.grid(row=2, column=1, sticky='w', padx=20)
+        creation_date_label.grid(row=2, column=1, sticky='w', padx=20, pady=20)
 
         frame.grid_columnconfigure(2, weight=1)
+
+    # 公開鍵登録フレームの作成
+    def create_register_frame(self, frame):
+        # ウィジェットの作成
+        pubkey_path_label    = ttk.Label(frame, text="送付されてきた公開鍵を登録する。（複数選択可）")
+        self.pubkey_path_var = tk.StringVar(frame)
+        pubkey_path_box      = ttk.Entry(frame,
+            textvariable=self.pubkey_path_var,
+            state='readonly')
+        pubkey_path_button   = ttk.Button(frame, text="参照")
+        pubkey_register_button = ttk.Button(frame, text="登録")
+
+        # 関数のバインド
+        pubkey_path_button.bind("<Button-1>", self.pubkey_select)
+        pubkey_register_button.bind("<Button-1>", self.pubkey_setup)
+
+        # ウィジェットの配置
+        pubkey_path_label.grid(row=0, column=0, sticky='w', columnspan=2, padx=20)
+        pubkey_path_box.grid(row=1, column=0, sticky='ew', padx=20, pady=20)
+        pubkey_path_button.grid(row=1, column=1, sticky='w', padx=(20, 10), pady=20)
+        pubkey_register_button.grid(row=2, column=1, sticky='w', padx=20, pady=20)
+
+        frame.grid_columnconfigure(0, weight=1)
 
     # 鍵新規作成フレームの作成
     def create_new_frame(self, frame):
@@ -269,7 +300,10 @@ class Key_Tab(ttk.Frame):
         pubkeys_dir_frame       = ttk.Frame(frame)
         self.pubkeys_dir_var    = tk.StringVar(pubkeys_dir_frame, value=self.pubkeys_dir.resolve())
         pubkeys_dir_box         = ttk.Entry(
-            pubkeys_dir_frame, textvariable=self.pubkeys_dir_var, state='readonly')
+            pubkeys_dir_frame,
+            textvariable=self.pubkeys_dir_var,
+            state='readonly'
+        )
         pubkey_extention_label  = ttk.Label(pubkeys_dir_frame, text=".key")
         pubkeys_dir_button      = ttk.Button(pubkeys_dir_frame, text="参照")
         pubkey_explain_label    = ttk.Label(frame, text="※作成した公開鍵を相手に渡してください")
@@ -306,7 +340,7 @@ class Key_Tab(ttk.Frame):
     # key_selectのvaluesに現在の鍵のファイル名で更新
     def key_select_clicked(self, event):
         self.keys_list = self.get_keys_list()
-        self.key_select['values'] = [key.stem() for key in self.keys_list]
+        self.key_select['values'] = [key.stem.strip('.') for key in self.keys_list]
 
     # key_selectで値を選択したときの動作
     def key_selected(self, event):
@@ -316,8 +350,22 @@ class Key_Tab(ttk.Frame):
             self.key_data = rsa_tools_obj.Key(json.load(file))
 
         self.key_set(self.key_data.key)
-        self.to_var = self.key_data.from_name if self.key_data.is_public else self.key_data.destination_name
-        self.date_var = self.key_data.creation_date.isoformat()
+        self.to_var.set(self.key_data.from_name
+            if self.key_data.is_public
+            else self.key_data.destination_name)
+        self.date_var.set(self.key_data.creation_date.isoformat())
+
+    # 任意の場所にある公開鍵を選択する
+    def pubkey_select(self, event):
+        pk_path = filedialog.askopenfilename(filetypes=[("鍵ファイル", "*.key")])
+        self.pubkey_path_var.set(pk_path)
+
+    # 選択した公開鍵をself.pubkeys_dirに登録
+    def pubkey_setup(self, event):
+        if not self.pubkey_path_var.get()=="":
+            pk_path = Path(self.pubkey_path_var.get())
+            pk_name = pk_path.stem
+            shutil.copy2(pk_path.resolve(), (self.pubkeys_dir/pk_name).resolve())
 
     # 公開鍵を保存するディレクトリを選択する
     def pubkeys_dir_select(self, event):
@@ -354,9 +402,15 @@ class Key_Tab(ttk.Frame):
         with sk_path.open('w') as f:
             json.dump(sk_data, f)
 
+        subprocess.run("explorer {}".format(self.pubkeys_dir), shell=True)
+        self.title_box.delete(0, 'end')
+        self.from_box.delete(0, 'end')
+        self.destination_box.delete(0, 'end')
+        messagebox.showinfo("公開鍵作成", "公開鍵を相手に送付してください。")
+
 if __name__ =='__main__':
     root = tk.Tk()
     Main_Window(root)
     root.update()
-    root.minsize(350, 400)
+    root.minsize(600, root.winfo_height())
     root.mainloop()
