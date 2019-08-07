@@ -13,7 +13,6 @@ from hashlib import sha256
 
 str_code = 'utf-8'
 hash_func = sha256
-n_digits = 712
 
 
 class Basic_RSA():
@@ -71,7 +70,7 @@ class Basic_RSA():
 
     # 掛けると2進数でn_digits桁になる素数をランダムに2つ生成
     @classmethod
-    def twin_prime(cls):
+    def twin_prime(cls, n_digits):
         p_digits = random.randint(n_digits//10, n_digits-n_digits//10)
         p = cls.search_prime(2**p_digits, 2**(p_digits+1)-1)
 
@@ -92,9 +91,9 @@ class Basic_RSA():
 
     # 鍵生成
     @classmethod
-    def gen_key(cls):
+    def gen_key(cls, n_digits):
         e = 65537
-        p, q = cls.twin_prime()
+        p, q = cls.twin_prime(n_digits)
 
         pub_key = [e, p*q]
 
@@ -135,40 +134,38 @@ class Key():
 
 
 class EX_RSA():
-    endian = 'big'
+    def __init__(self, n_digits):
+        self.endian = 'big'
+        self.n_digits = n_digits
 
-    @classmethod
-    def int2byte(cls, num):
-        return num.to_bytes(n_digits//8, cls.endian)
+    def int2byte(self, num):
+        return num.to_bytes(self.n_digits//8, self.endian)
 
     # Base64でintをエンコード
-    @classmethod
-    def int_b64encode(cls, num):
-        byted = cls.int2byte(num)
+    def int_b64encode(self, num):
+        byted = self.int2byte(num)
         return base64.b64encode(byted).decode()
 
     # Base64でデコードしてintに
-    @classmethod
-    def b64_decode(cls, b64):
+    def b64_decode(self, b64):
         byted = base64.b64decode(b64.encode())
-        return int.from_bytes(byted, cls.endian)
+        return int.from_bytes(byted, self.endian)
 
     # Base85でintをエンコード
-    @classmethod
-    def int_b85encode(cls, num):
-        byted = cls.int2byte(num)
+    def int_b85encode(self, num):
+        byted = self.int2byte(num)
         return base64.b85encode(byted).decode()
 
     # Base85でデコードしてintに
-    @classmethod
-    def b85_decode(cls, b85):
+    def b85_decode(self, b85):
         byted = base64.b85decode(b85.encode())
-        return int.from_bytes(byted, cls.endian)
+        return int.from_bytes(byted, self.endian)
 
 
 class Str_Crypt():
     def __init__(self, my_key):
-        self.crypt = lambda num: Basic_RSA.crypt(num, my_key)
+        self.crypt = lambda num: Basic_RSA.crypt(num, my_key.key)
+        self.n_digits = my_key.n_digits
 
     # strをtupleに
     @classmethod
@@ -180,14 +177,14 @@ class Str_Crypt():
     def text_encrypt(self, plaintext, c_type=lambda x: x):
         byted_text = plaintext.encode(str_code)
         text_len = len(byted_text)
-        max_len = n_digits//8
+        max_len = self.n_digits//8
         sub_texts = [byted_text[i:i+max_len] for i in range(0, text_len, max_len)]
         sub_cipher = lambda t: c_type(self.crypt(int.from_bytes(t, 'little')))
         return [sub_cipher(text) for text in sub_texts]
 
     # 分割された暗号を文字列に復号
     def text_decrypt(self, c_list, c_type=lambda x: int(x)):
-        sub_text = lambda c: self.crypt(c_type(c)).to_bytes(n_digits//8+1, 'little')
+        sub_text = lambda c: self.crypt(c_type(c)).to_bytes(self.n_digits//8+1, 'little')
         sub_byted_texts = [sub_text(cipher) for cipher in c_list]
         byted_texts = b''.join(sub_byted_texts)
         return byted_texts.decode(str_code).replace('\x00', '')

@@ -41,15 +41,15 @@ class Main_Tab(ttk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
         self.create_widgets()
-        self.key_set(None) # あとで削除
-
-        # 暗号文のコードはBase85
-        self.encoder = rsa_tools_obj.EX_RSA().int_b85encode
-        self.decoder = rsa_tools_obj.EX_RSA().b85_decode
 
     # 鍵の登録
     def key_set(self, my_key):
-        self.cryptor = rsa_tools_obj.Str_Crypt(my_key)
+        self.my_key = my_key
+        self.cryptor = rsa_tools_obj.Str_Crypt(my_key.key)
+
+        # 暗号文のコードはBase85
+        self.encoder = rsa_tools_obj.EX_RSA(my_key.n_digits).int_b85encode
+        self.decoder = rsa_tools_obj.EX_RSA(my_key.n_digits).b85_decode
 
     # ウィジェットの作成
     def create_widgets(self):
@@ -222,6 +222,7 @@ class Key_Tab(ttk.Frame):
             shell=True)
         self.create_widgets()
 
+
     # ウィジェットの作成
     def create_widgets(self):
         current_frame  = ttk.Labelframe(self.master, text="現在の使用鍵")
@@ -349,7 +350,7 @@ class Key_Tab(ttk.Frame):
         with key_dir.open('r') as file:
             self.key_data = rsa_tools_obj.Key(json.load(file))
 
-        self.key_set(self.key_data.key)
+        self.key_set(self.key_data)
         self.to_var.set(self.key_data.from_name
             if self.key_data.is_public
             else self.key_data.destination_name)
@@ -380,11 +381,13 @@ class Key_Tab(ttk.Frame):
 
     # 新規鍵を作成して秘密鍵を./.keyに、公開鍵を./pubkeyに作成
     def create_key(self, event):
-        pk, sk = rsa_tools_obj.Basic_RSA.gen_key()
+        n_digits = 712
+        pk, sk = rsa_tools_obj.Basic_RSA.gen_key(n_digits)
 
         def addition_info(key):
             return {
                 'key': key,
+                'n_digits': n_digits,
                 'from': self.from_box.get(),
                 'destination': self.destination_box.get(),
                 'creation_date': datetime.date.today().isoformat()
