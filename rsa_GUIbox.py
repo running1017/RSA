@@ -45,7 +45,7 @@ class Main_Tab(ttk.Frame):
     # 鍵の登録
     def key_set(self, my_key):
         self.my_key = my_key
-        self.cryptor = rsa_tools_obj.Str_Crypt(my_key.key)
+        self.cryptor = rsa_tools_obj.Str_Crypt(my_key)
 
         # 暗号文のコードはBase85
         self.encoder = rsa_tools_obj.EX_RSA(my_key.n_digits).int_b85encode
@@ -78,6 +78,8 @@ class Main_Tab(ttk.Frame):
 
         self.input_box.bind("<Button-3>", self.input_show_menu)
         self.input_box.bind("<Control-KeyPress-e>", lambda e: self.partially_select())
+        self.input_box.bind("<Control-KeyPress-s>", self.enc_clicked)
+        self.input_box.bind("<Control-KeyPress-r>", self.dec_clicked)
         self.input_box["yscrollcommand"] = scrollbar.set
         paste_button.bind("<Button-1>", self.paste_clicked)
 
@@ -169,11 +171,8 @@ class Main_Tab(ttk.Frame):
 
     # 入力ボックスの内容を復号化して出力ボックスに表示
     def dec_clicked(self, event):
-        try:
-            cipher = self.input_box.get('1.0', 'end -1c')
-            receive_text = self.cryptor.partially_decrypt(cipher, self.decoder)
-        except ValueError:
-            receive_text = "復号化できませんでした"
+        cipher = self.input_box.get('1.0', 'end -1c')
+        receive_text = self.cryptor.partially_decrypt(cipher, self.decoder)
 
         self.output_box.configure(state='normal')
         self.output_box.delete('1.0', 'end')
@@ -222,6 +221,11 @@ class Key_Tab(ttk.Frame):
             shell=True)
         self.create_widgets()
 
+        self.key_select_clicked(None)
+        if len(self.key_select['value']) != 0:
+            self.key_select.current(0)
+            self.key_selected(None)
+
 
     # ウィジェットの作成
     def create_widgets(self):
@@ -268,7 +272,7 @@ class Key_Tab(ttk.Frame):
     # 公開鍵登録フレームの作成
     def create_register_frame(self, frame):
         # ウィジェットの作成
-        pubkey_path_label    = ttk.Label(frame, text="送付されてきた公開鍵を登録する。（複数選択可）")
+        pubkey_path_label    = ttk.Label(frame, text="送付されてきた公開鍵を登録する")
         self.pubkey_path_var = tk.StringVar(frame)
         pubkey_path_box      = ttk.Entry(frame,
             textvariable=self.pubkey_path_var,
@@ -361,12 +365,13 @@ class Key_Tab(ttk.Frame):
         pk_path = filedialog.askopenfilename(filetypes=[("鍵ファイル", "*.key")])
         self.pubkey_path_var.set(pk_path)
 
-    # 選択した公開鍵をself.pubkeys_dirに登録
+    # 選択した公開鍵をself.my_keys_dirに登録
     def pubkey_setup(self, event):
         if not self.pubkey_path_var.get()=="":
             pk_path = Path(self.pubkey_path_var.get())
-            pk_name = pk_path.stem
-            shutil.copy2(pk_path.resolve(), (self.pubkeys_dir/pk_name).resolve())
+            pk_name = pk_path.name
+            shutil.copy2(pk_path.resolve(), (self.my_keys_dir/pk_name).resolve())
+            self.pubkey_path_var.set('')
 
     # 公開鍵を保存するディレクトリを選択する
     def pubkeys_dir_select(self, event):
@@ -381,7 +386,7 @@ class Key_Tab(ttk.Frame):
 
     # 新規鍵を作成して秘密鍵を./.keyに、公開鍵を./pubkeyに作成
     def create_key(self, event):
-        n_digits = 712
+        n_digits = 513
         pk, sk = rsa_tools_obj.Basic_RSA.gen_key(n_digits)
 
         def addition_info(key):

@@ -139,7 +139,7 @@ class EX_RSA():
         self.n_digits = n_digits
 
     def int2byte(self, num):
-        return num.to_bytes(self.n_digits//8, self.endian)
+        return num.to_bytes(self.n_digits//8+1, self.endian)
 
     # Base64でintをエンコード
     def int_b64encode(self, num):
@@ -168,13 +168,13 @@ class Str_Crypt():
         self.n_digits = my_key.n_digits
 
     # strをtupleに
-    @classmethod
-    def str2tuple(cls, string):
+    def str2tuple(self, string):
         str_list = re.split('[,\n ]+', string.strip('()[]'))
         return str_list
 
     # 文字列を分割して暗号化
     def text_encrypt(self, plaintext, c_type=lambda x: x):
+        # 一度バイト列にしてから分割
         byted_text = plaintext.encode(str_code)
         text_len = len(byted_text)
         max_len = self.n_digits//8
@@ -184,7 +184,7 @@ class Str_Crypt():
 
     # 分割された暗号を文字列に復号
     def text_decrypt(self, c_list, c_type=lambda x: int(x)):
-        sub_text = lambda c: self.crypt(c_type(c)).to_bytes(self.n_digits//8+1, 'little')
+        sub_text = lambda c: self.crypt(c_type(c)).to_bytes(self.n_digits//8, 'little')
         sub_byted_texts = [sub_text(cipher) for cipher in c_list]
         byted_texts = b''.join(sub_byted_texts)
         return byted_texts.decode(str_code).replace('\x00', '')
