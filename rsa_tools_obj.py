@@ -9,6 +9,7 @@ import base64
 import datetime
 import random
 import re
+import string
 from hashlib import sha256
 
 str_code = 'utf-8'
@@ -177,21 +178,22 @@ class Str_Crypt():
         # 一度バイト列にしてから分割
         byted_text = plaintext.encode(str_code)
         text_len = len(byted_text)
-        max_len = self.n_digits//8
-        sub_texts = [byted_text[i:i+max_len] for i in range(0, text_len, max_len)]
+        max_len = self.n_digits//8-1
+        sub_texts = [random.choice(string.printable).encode(str_code) + byted_text[i:i+max_len]
+                     for i in range(0, text_len, max_len)]
         sub_cipher = lambda t: c_type(self.crypt(int.from_bytes(t, 'little')))
         return [sub_cipher(text) for text in sub_texts]
 
     # 分割された暗号を文字列に復号
     def text_decrypt(self, c_list, c_type=lambda x: int(x)):
         sub_text = lambda c: self.crypt(c_type(c)).to_bytes(self.n_digits//8, 'little')
-        sub_byted_texts = [sub_text(cipher) for cipher in c_list]
+        sub_byted_texts = [sub_text(cipher)[1:] for cipher in c_list]
         byted_texts = b''.join(sub_byted_texts)
         return byted_texts.decode(str_code).replace('\x00', '')
 
     # 復号化したときのプレビュー
     def dec_preview(self, text, enc=lambda m: m.group().strip('[]「」')):
-        pattern = r'[\[|「][^\[\]「」]*[\]|」]'
+        pattern = r'[\[「][^\[\]「」]*[\]」]'
         i = 0
         partially_encrypted = ''
         for m in re.finditer(pattern, text):

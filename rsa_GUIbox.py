@@ -24,7 +24,7 @@ class Main_Window(ttk.Notebook):
 
         # メインタブの作成
         main_tab = ttk.Frame(self)
-        self.add(main_tab, text="crypt", padding=3)
+        self.add(main_tab, text="crypto", padding=3)
         key_set = Main_Tab(master=main_tab).key_set
 
         # キータブの作成
@@ -70,7 +70,7 @@ class Main_Tab(ttk.Frame):
 
     # 入力ボックス関連フレームの作成
     def create_input_frame(self, frame):
-        self.input_box = tk.Text(frame, font=("MS Pゴシック", 12), height=10)
+        self.input_box = tk.Text(frame, font=("MS Gothic", 12), height=8)
         paste_button = ttk.Button(frame, text="貼り付け")
         scrollbar = tk.Scrollbar(frame, command=self.input_box.yview)
         self.input_menu = tk.Menu(frame, tearoff=0)
@@ -79,7 +79,10 @@ class Main_Tab(ttk.Frame):
         self.input_box.bind("<Button-3>", self.input_show_menu)
         self.input_box.bind("<Control-KeyPress-e>", lambda e: self.partially_select())
         self.input_box.bind("<Control-KeyPress-s>", self.enc_clicked)
+        self.input_box.bind("<Alt-Control-KeyPress-s>", self.enc_alt_clicked)
         self.input_box.bind("<Control-KeyPress-r>", self.dec_clicked)
+        self.input_box.bind("<Alt-Control-KeyPress-r>", self.dec_alt_clicked)
+        self.input_box.bind("<Control-KeyPress-c>", self.clear_clicked)
         self.input_box["yscrollcommand"] = scrollbar.set
         paste_button.bind("<Button-1>", self.paste_clicked)
 
@@ -92,30 +95,32 @@ class Main_Tab(ttk.Frame):
 
     # ボタン関連フレームの作成
     def create_button_frame(self, frame):
-        dec_button = ttk.Button(frame, text="受信した")
+        dec_button = ttk.Button(frame, text="受信した (Ctl+r)")
         preview_button = ttk.Button(frame, text="プレビュー")
-        clear_button = ttk.Button(frame, text="クリア")
-        enc_button = ttk.Button(frame, text="送信する")
+        clear_button = ttk.Button(frame, text="クリア (Ctl+c)")
+        enc_button = ttk.Button(frame, text="送信する (Ctl+s)")
 
         dec_button.bind("<Button-1>", self.dec_clicked)
+        dec_button.bind("<Alt-Button-1>", self.dec_alt_clicked)
         preview_button.bind("<Button-1>", self.preview_clicked)
         clear_button.bind("<Button-1>", self.clear_clicked)
         enc_button.bind("<Button-1>", self.enc_clicked)
+        enc_button.bind("<Alt-Button-1>", self.enc_alt_clicked)
 
         dec_button.grid(row=0, column=0, sticky='ew')
-        preview_button.grid(row=0, column=1, sticky='ew')
+        #preview_button.grid(row=0, column=1, sticky='ew')
+        enc_button.grid(row=0, column=1, sticky='ew')
         clear_button.grid(row=0, column=2, sticky='ew')
-        enc_button.grid(row=0, column=3, sticky='ew')
 
-        frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        frame.grid_columnconfigure((0, 1, 2), weight=1)
 
     # 出力ボックス関連フレームの作成
     def create_output_frame(self, frame):
         self.output_box = tk.Text(
             frame,
             state='disabled',
-            font=("MS Pゴシック", 12),
-            height=10
+            font=("MS Gothic", 12),
+            height=8
         )
         copy_button = ttk.Button(frame, text="コピー")
         scrollbar = ttk.Scrollbar(frame, command=self.output_box.yview)
@@ -169,7 +174,12 @@ class Main_Tab(ttk.Frame):
         self.output_box.insert('1.0', send_cipher)
         self.output_box.configure(state='disabled')
 
-    # 入力ボックスの内容を復号化して出力ボックスに表示
+    # 入力ボックスの内容を暗号化して出力ボックスに表示してクリップボードにコピー
+    def enc_alt_clicked(self, event):
+        self.enc_clicked(None)
+        self.copy_clicked(None)
+
+    # 入力ボックスの内容を復号して出力ボックスに表示
     def dec_clicked(self, event):
         cipher = self.input_box.get('1.0', 'end -1c')
         receive_text = self.cryptor.partially_decrypt(cipher, self.decoder)
@@ -178,6 +188,11 @@ class Main_Tab(ttk.Frame):
         self.output_box.delete('1.0', 'end')
         self.output_box.insert('1.0', receive_text)
         self.output_box.configure(state='disabled')
+
+    # クリップボードから入力ボックスに貼り付けて復号
+    def dec_alt_clicked(self, event):
+        self.paste_clicked(None)
+        self.dec_clicked(None)
 
     # クリップボードの内容を入力ボックスに貼り付け
     def paste_clicked(self, event):
@@ -261,11 +276,11 @@ class Key_Tab(ttk.Frame):
         self.key_select.bind("<<ComboboxSelected>>", self.key_selected)
 
         # ウィジェットの配置
-        self.key_select.grid(row=0, column=0, columnspan=3, sticky='ew', padx=20, pady=20)
+        self.key_select.grid(row=0, column=0, columnspan=3, sticky='ew', padx=20, pady=10)
         to_label.grid(row=1, column=0, sticky='w', padx=20)
         to_name_label.grid(row=1, column=1, sticky='w', padx=20)
-        creation_label.grid(row=2, column=0, sticky='w', padx=20)
-        creation_date_label.grid(row=2, column=1, sticky='w', padx=20, pady=20)
+        creation_label.grid(row=2, column=0, sticky='w', padx=20, pady=(0, 10))
+        creation_date_label.grid(row=2, column=1, sticky='w', padx=20, pady=(0, 10))
 
         frame.grid_columnconfigure(2, weight=1)
 
@@ -286,9 +301,9 @@ class Key_Tab(ttk.Frame):
 
         # ウィジェットの配置
         pubkey_path_label.grid(row=0, column=0, sticky='w', columnspan=2, padx=20)
-        pubkey_path_box.grid(row=1, column=0, sticky='ew', padx=20, pady=20)
-        pubkey_path_button.grid(row=1, column=1, sticky='w', padx=(20, 10), pady=20)
-        pubkey_register_button.grid(row=2, column=1, sticky='w', padx=20, pady=20)
+        pubkey_path_box.grid(row=1, column=0, sticky='ew', padx=20, pady=10)
+        pubkey_path_button.grid(row=1, column=1, sticky='w', padx=(20, 10), pady=10)
+        pubkey_register_button.grid(row=2, column=1, sticky='w', padx=20, pady=(0, 10))
 
         frame.grid_columnconfigure(0, weight=1)
 
@@ -312,6 +327,10 @@ class Key_Tab(ttk.Frame):
         pubkey_extention_label  = ttk.Label(pubkeys_dir_frame, text=".key")
         pubkeys_dir_button      = ttk.Button(pubkeys_dir_frame, text="参照")
         pubkey_explain_label    = ttk.Label(frame, text="※作成した公開鍵を相手に渡してください")
+        n_digit_label           = ttk.Label(frame, text="鍵の複雑さ")
+        self.n_digit_var        = tk.IntVar(frame)
+        n_digit_box             = ttk.Combobox(frame, values=[64, 128, 256, 512], textvariable=self.n_digit_var)
+        n_digit_box.current(2)
         create_button           = ttk.Button(frame, text="作成")
 
         # 関数のバインド
@@ -329,6 +348,8 @@ class Key_Tab(ttk.Frame):
         pubkeys_dir_label.grid(row=3, column=0, sticky='w', padx=10, pady=(10, 0))
         pubkeys_dir_frame.grid(row=3, column=1, sticky='ew', padx=20, pady=(10, 0))
         pubkey_explain_label.grid(row=4, column=1, sticky='w', padx=20)
+        n_digit_label.grid(row=5, column=0, sticky='w', padx=10, pady=10)
+        n_digit_box.grid(row=5, column=1, sticky='w', padx=20, pady=10)
         create_button.grid(row=5, column=1, sticky='e', padx=20, pady=10)
 
         pubkeys_dir_box.grid(row=0, column=0, sticky='ew')
@@ -386,7 +407,7 @@ class Key_Tab(ttk.Frame):
 
     # 新規鍵を作成して秘密鍵を./.keyに、公開鍵を./pubkeyに作成
     def create_key(self, event):
-        n_digits = 513
+        n_digits = self.n_digit_var.get()+1
         pk, sk = rsa_tools_obj.Basic_RSA.gen_key(n_digits)
 
         def addition_info(key):
